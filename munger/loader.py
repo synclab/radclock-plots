@@ -34,6 +34,8 @@ import numpy as np
 from datetime import datetime as dtime
 from dateutil import tz
 
+from container import *
+
 
 # Took a while to get it right (right being relative to pandas and numpy
 # versions and other silly things.
@@ -46,35 +48,12 @@ def stamp_parser(stamp):
 
 class DataLoader(object):
 
-	# Types for data. Key is original data type, and value is the new type
-	# resulting from a merge_into_left when left data has type key
-	mergeTypes = {
-			'NTP_dag'        : 'NTP_dag_merged',
-			'NTP_rad'        : 'RAD_merged',
-			'UDP_dag'        : '',
-			'UDP_sniff'      : 'UDP_merged',
-			'NTP_sniff_snd'  : 'NTP_rad',
-			'NTP_sniff_rcv'  : '',
-			'NTP_dag_merged' : '',
-			'RAD_merged'     : '',
-			'UDP_merged'     : '',
-			'radclock'       : ''
-			}
-
-
-	def __init__(self, datafile, mtype=None):
+	def __init__(self, datafile):
 		"""
 		Generic class to open stamp data files. Main purpose of the constructor is
 		to extract header and data from files created by radclock, dag_extract or
 		udp_probes_sniffer.
 		"""
-		self.data = pd.DataFrame()
-
-		# Set data type
-		if mtype not in DataLoader.mergeTypes and mtype is not None:
-			raise exceptions.TypeError
-		else:
-			self.mtype = mtype
 
 		# Store opened file desc if passed by argparse for example, otherwise
 		# assumes path and attempt to open it.
@@ -107,40 +86,40 @@ class DataLoader(object):
 				break
 
 
+
 	def parse_header(self):
 		"""
 		Extract exact fields descriptor from header
 		"""
 		self.headerlen = 0
+		description = ''
+		fields = ''
+		magic = ''
+		mtype = ''
+		version = ''
+
 		for line in self.header:
 			if line.startswith('% description:'):
-				self.description = line.replace('% description: ', '')
-				self.description = re.sub(r'\n', '', self.description)
-
-			if line.startswith('% type:'):
-				mtype = line.replace('% type: ', '')
-				mtype = re.sub(r'\n', '', mtype)
-				if self.mtype != mtype:
-					print 'Data type mismatch %s %s' % (self.mtype, mtype)
-					raise exceptions.TypeError
-
-			if line.startswith('% version:'):
-				version = line.replace('% version: ', '')
-				version = re.sub(r'\n', '', version)
-				self.version = int(version)
+				description = line.replace('% description: ', '')
+				description = re.sub(r'\n', '', description)
 
 			if line.startswith('% fields:'):
 				# Clean up fields string and build fields descriptors
 				fields = line.replace('% fields: ', '')
 				fields = re.sub(r'\n', '', fields)
 				fields = fields.split(r' ')
-				self.fields_from_text = fields
-				self.fields = list(self.fields_from_text)
 
 			if line.startswith('% magic:'):
 				magic = line.replace('% magic: ', '')
 				magic = re.sub(r'\n', '', magic)
-				self.magic = magic
+
+			if line.startswith('% type:'):
+				mtype = line.replace('% type: ', '')
+				mtype = re.sub(r'\n', '', mtype)
+
+			if line.startswith('% version:'):
+				version = line.replace('% version: ', '')
+				version = re.sub(r'\n', '', version)
 
 			if line.startswith('%'):
 				self.headerlen += 1
@@ -148,32 +127,65 @@ class DataLoader(object):
 			if not line.startswith('%'):
 				break
 
-		if len(fields) == 0:
+		if len(list(fields)) == 0:
 			print 'Could not find format from header'
 			raise exceptions.TypeError
 
 
-	def load_data(self):
+		header_info = dict();
+		header_info['description'] = description
+		header_info['fields'] = list(fields)
+		header_info['fields_from_text'] = fields
+		header_info['magic'] = magic
+		header_info['mtype'] = mtype
+		header_info['version'] = int(version)
+		return header_info;
+
+
+	def load_data(self, container):
 		"""
 		Extract tabular stamp data as a pandas.DataFrame.
 		"""
+
 		# Extract file header, takes comment character as an option
 		self.extract_header()
-		self.parse_header()
+		header_info = self.parse_header()
 
-		# Pandas infers the type of data automatically, and 
-		# maps data to float64 or int64. Problem, may arise when integers are
-		# way too big (eg NTP key) and uses the full 64 bit range. Pandas
-		# convert unsigned to signed, leading to negative and non unique number.
-		# Should be fine on merged data (since keys are dropped), but something
-		# to keep in mind if raw timestamps get too big?
+		if container.mtype != header_info['mtype']:
+			print 'Data type mismatch %s %s' % (container.mtype, header_infor['mtype'])
+			raise exceptions.TypeError
+
+		container.description = header_info['description']
+		container.fields_from_text = header_info['fields_from_text']
+		container.fields = header_info['fields']
+		container.magic = header_info['magic']
+		container.version = header_info['version']
+
+		# Pandas infers the type of data automatically, and maps data to float64
+		# or int64. Problem, may arise when integers are way too big (eg NTP
+		# key) and uses the full 64 bit range. Pandas convert unsigned to
+		# signed, leading to negative and non unique number.  Should be fine on
+		# merged data (since keys are dropped), but something to keep in mind if
+		# raw timestamps get too big?
 		self.dataFile.seek(0)
-		self.data = pd.read_csv(self.dataFile, delimiter= ' ',
-				skiprows=self.headerlen, names=self.fields,
-				parse_dates={'time' : [5]},
-				keep_date_col=True,
-				date_parser=stamp_parser)
-		self.data = self.data[:-1]
+
+		data = pd.read_csv( self.dataFile, delimiter= ' ',
+							skiprows=self.headerlen, names=container.fields,
+							parse_dates={'time' : [5]},
+							keep_date_col=True,
+							date_parser=stamp_parser)
+		container.data = data[:-1]
+
+
+
+	@classmethod
+	def load(cls, datafile, container):
+
+		# Set data type
+		assert(container.mtype in DataContainer.mergeTypes);
+
+		loader = DataLoader(datafile)
+		loader.load_data(container)
 
 
 
