@@ -31,11 +31,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from common import *
+from styles import *
 
 
 
 # -----------------------------------------------------------------------------
-# Compute down-sampling interval 
+# Compute down-sampling interval
 # -----------------------------------------------------------------------------
 def sample_data(df, sampling, path):
 	"""
@@ -76,14 +77,14 @@ def sample_data(df, sampling, path):
 	if plt.isinteractive():
 		autosample = True
 	vector_fmt_extensions = ('.svg', '.ps', '.eps', '.pdf')
-	if path.lower().endswith(vector_fmt_extensions):
+	if path == None or path.lower().endswith(vector_fmt_extensions):
 		autosample = True
 
 	# Need to calibrate MAXSIZE
 	MAXSIZE = 2000
 	size = df.count().max()
 	if autosample == True and size > MAXSIZE:
-		sampling = int(size / MAXSIZE) 
+		sampling = int(size / MAXSIZE)
 		idx = range(0,size,sampling)
 		data = df.ix[idx]
 	else:
@@ -97,47 +98,38 @@ def sample_data(df, sampling, path):
 # Plot timeseries
 # -----------------------------------------------------------------------------
 def tseries(df, styles=None, ax=None, title='Title',
+		transparency=0.3,
 		xlabel='Xlabel', ylabel='Ylabel', path=None,
 		ptile_range=(1,99), sampling=None):
 	"""
 	Takes a pandas.Series or pandas.DataFrame timeseries as input and plot.
 	sampling can be an integer or a time period such as '5Min'. If sampling is
 	0, auto-sampling is disabled.
+	styles parameter takes precedence over color and transparency.
 	"""
 
 	# Test that ts is a pandas DataFrame object
 	if (not isinstance(df, pd.Series) and
 		not isinstance(df, pd.DataFrame)):
-		print "Data passed to histogram is not a pandas DataFrame object"
+		print "Data passed to tseries is not a pandas object"
 		raise exceptions.TypeError
 		return
 
 	# Check that style dictionary keys match df column names
 	if styles != None:
-		if isinstance(df, pd.Series):
-			dkeys = set([df.name])	
-		elif isinstance(df, pd.DataFrame):
-			dkeys = set(df.columns)
-		else:
-			raise exceptions.TypeError
-			return
-		skeys = set(styles.keys())
-		if not dkeys.issubset(skeys):
-			print dkeys
-			print skeys
-			print "styles and dataframe column do not match in tseries"
+		if styles.valid_for_data(df) == False:
 			raise exceptions.KeyError
 
 	# Get stats for this data as a DataFrame
 	stats = custom_stats(df, ptile_range)
 
-	# Compute how to auto-scale data 
+	# Compute how to auto-scale data
 	ymax = stats.ix['upper_bound'].max()
 	ymin = stats.ix['lower_bound'].min()
 	spread = ymax - ymin
 	scale, unit = scale_data(spread)
 
-	# Scale stats 
+	# Scale stats
 	scaledstats = stats * scale
 
 	# Sample data to save resources. Note that the stats are computed on full
@@ -151,24 +143,33 @@ def tseries(df, styles=None, ax=None, title='Title',
 	if path != None or ax == None:
 		fig = plt.figure(figsize=(8.0, 3.0)) # in inches!
 		ax = fig.gca()
+	else:
+		fig = plt.gcf()
 
 	# Plot all timeseries
 	# if plot_data is timeseries, style has to be a string
-	if isinstance(plot_data, pd.Series):
-		style = styles[plot_data.name]
-	else:
-		style = styles
+	linestyle = None
+	if styles != None:
+		if isinstance(plot_data, pd.Series):
+			linestyle = styles.linestyle_for_name(plot_data.name)
+		else:
+			linestyle = styles.linestyles()
 
-	(plot_data * scale).plot(ax=ax, style=style,
-			alpha=0.3)
+	(plot_data * scale).plot(ax=ax,
+			style=linestyle,
+			alpha=transparency)
 
 	# Esthetics
 	ax.grid(which='major', axis='both')
 	ax.set_ylim(ymin*scale,ymax*scale)
 	ax.set_title(title)
 	ax.set_ylabel(ylabel+' '+unit)
+
 	# To have ticks and labels display nicely
-	fig.tight_layout()
+	if fig == None:
+		print "Warning: no figure, no tight layout"
+	else:
+		fig.tight_layout()
 
 	# Saving on file
 	if path != None:

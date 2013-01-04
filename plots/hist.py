@@ -30,24 +30,31 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from common import *
+from styles import *
 
 
 # -----------------------------------------------------------------------------
 # Plot histograms
 # -----------------------------------------------------------------------------
-def hist(ts, ax=None, ptile_range=(0,100), title='Title', color='b',
+def hist(ts, styles=None, ax=None, ptile_range=(0,100), title='Title', color='b',
 		transparency=0.3, unit_scale=('s', 0), xlabel='XLabel',
 		with_yticks=True, with_kde=True, path=None):
 	"""
 	Convenience function that wraps a few common tasks to generate an
 	histogram based on pandas Series object. It uses pandas.hist(), which in
 	turns relies on matplotlib.hist().
+	styles parameter takes precedence over color and transparency.
 	"""
 
 	# Ttest that ts is a pandas Series object
 	if not isinstance(ts, pd.Series):
 		print "Data passed to histogram is not a pandas Series object"
 		return
+
+	# Check that style dictionary keys match df column names
+	if styles != None:
+		if styles.valid_for_data(ts) == False:
+			raise exceptions.KeyError
 
 	# Get stats for this data as a Series
 	stats = custom_stats(ts, ptile_range)
@@ -60,7 +67,7 @@ def hist(ts, ax=None, ptile_range=(0,100), title='Title', color='b',
 		unit  = '['+unit_scale[0]+']'
 		scale = unit_scale[1]
 
-	# Scale stats 
+	# Scale stats
 	scaledstats = stats * scale
 
 	# Get reasonable figure and axis
@@ -68,13 +75,20 @@ def hist(ts, ax=None, ptile_range=(0,100), title='Title', color='b',
 	if path != None or ax == None:
 		fig = plt.figure(figsize=(5, 3.50)) # in inches!
 		ax = fig.gca()
+	else:
+		fig = plt.gcf()
+
+	if styles != None:
+		plot_color = styles.color_for_name(ts.name)
+	else:
+		plot_color = color
 
 	# Actual histogram
 	# TODO: cap bin size?
 	(ts * scale).hist(ax=ax, bins=500,
 		alpha=transparency,
-		facecolor=color,
-		edgecolor=color,
+		facecolor=plot_color,
+		edgecolor=plot_color,
 		linewidth=0,
 		normed=True,
 		range=(scaledstats['lower_bound'],scaledstats['upper_bound']),
@@ -89,7 +103,7 @@ def hist(ts, ax=None, ptile_range=(0,100), title='Title', color='b',
 	# Esthetics
 	ax.grid(which='major', axis='both')
 	ax.set_xlim(scaledstats['lower_bound'],scaledstats['upper_bound'])
-	ax.legend()
+#	ax.legend()
 	ax.set_title(title)
 	ax.set_xlabel(xlabel+ ' ' +unit+ ' (min=%.1f, med=%.1f, IQR=%.1f)'
 			%(scaledstats['min'], scaledstats['50%'],
@@ -101,7 +115,11 @@ def hist(ts, ax=None, ptile_range=(0,100), title='Title', color='b',
 		ax.set_ylabel('')
 
 	# To have ticks and labels display nicely
-	fig.tight_layout()
+	if fig == None:
+		print "Warning: no figure, no tight layout"
+	else:
+		fig.tight_layout()
+		print 'Warning: disabled histogram tight layout'
 
 	# Saving on file
 	if path != None:
