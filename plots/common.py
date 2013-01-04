@@ -90,7 +90,7 @@ def scale_data(spread):
 		unit = '[ns]'
 	elif spread < 1e-3:
 		scale = 1e6
-		unit = '[mus]'
+		unit = '[us]'
 	elif spread < 1:
 		scale = 1e3
 		unit = '[ms]'
