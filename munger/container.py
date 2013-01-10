@@ -26,73 +26,68 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # ------------------------------------------------------------------------------
 
+import exceptions
 import pandas as pd
 
 
 class DataContainer(object):
 
-	# Types for data. Key is original data type, and value is the new type
-	# resulting from a merge_into_left when left data has type key
-	mergeTypes = {
-			'NTP_dag'        : 'NTP_dag_merged',
-			'NTP_rad'        : 'RAD_merged',
-			'UDP_dag'        : '',
-			'UDP_sniff'      : 'UDP_merged',
-			'NTP_sniff_snd'  : 'NTP_rad',
-			'NTP_sniff_rcv'  : '',
-			'NTP_dag_merged' : '',
-			'RAD_merged'     : '',
-			'UDP_merged'     : '',
-			'radclock'       : ''
-			}
+    # Types for data. Key is original data type, and value is the new type
+    # resulting from a merge_into_left when left data has type key
+    mergeTypes = {
+            'NTP_dag'        : 'NTP_dag_merged',
+            'NTP_rad'        : 'RAD_merged',
+            'UDP_dag'        : '',
+            'UDP_sniff'      : 'UDP_merged',
+            'NTP_sniff_snd'  : 'NTP_rad',
+            'NTP_sniff_rcv'  : '',
+            'NTP_dag_merged' : '',
+            'RAD_merged'     : '',
+            'UDP_merged'     : '',
+            'radclock'       : ''
+            }
 
 
-	def __init__(self, mtype=None):
-		"""
-		Generic class to open stamp data files. Main purpose of the constructor is
-		to extract header and data from files created by radclock, dag_extract or
-		udp_probes_sniffer.
-		"""
-		self.data = pd.DataFrame()
-		self.fields = list() 
+    def __init__(self, mtype=None):
+        """
+        Generic class to open stamp data files. Main purpose of the constructor is
+        to extract header and data from files created by radclock, dag_extract or
+        udp_probes_sniffer.
+        """
+        self.data = pd.DataFrame()
+        self.fields = list()
 
-		# Set data type
-		if mtype not in DataContainer.mergeTypes and mtype is not None:
-			raise exceptions.TypeError
-		else:
-			self.mtype = mtype
-
+        # Set data type
+        if mtype not in DataContainer.mergeTypes and mtype is not None:
+            raise exceptions.TypeError
+        else:
+            self.mtype = mtype
 
 
 
 class DataRadclock(DataContainer):
 
-	def raw_rtt(self):
-		df = self.data
-		s = df.RTT
-		s.name = 'raw_rtt'
-		return s
+    def raw_rtt(self):
+        df = self.data
+        s = df.RTT
+        s.name = 'raw_rtt'
+        return s
 
-	def rtt(self):
-		df = self.data
-		s = df.RTT * df.phat
-		s.name = 'rtt'
-		return s
+    def rtt(self):
+        df = self.data
+        s = df.RTT * df.phat
+        s.name = 'rtt'
+        return s
 
-	def rtt_host(self):
-		df = self.data
-		s = df.RTT * df.phat - (df.DAG_RX - df.DAG_TX)
-		s.name = 'rtt_host'
-		return s
+    def rtt_host(self):
+        df = self.data
+        s = df.RTT * df.phat - (df.DAG_RX - df.DAG_TX)
+        s.name = 'rtt_host'
+        return s
 
-	def server_delay(self):
-		df = self.data
-		s = df.Te - df.Tb
-		s.name = 'server_delay'
-		return s
-
-
-
-
-
+    def server_delay(self):
+        df = self.data
+        s = df.Te - df.Tb
+        s.name = 'server_delay'
+        return s
 

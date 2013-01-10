@@ -36,67 +36,66 @@ from container import *
 
 class DataMerger(object):
 
-	MERGE_RADCLOCK = 1
-	MERGE_UDP = 2
+    MERGE_RADCLOCK = 1
+    MERGE_UDP = 2
 
 
-	@classmethod
-	def merge(cls, left, right):
-		merge_op = 0
-		for container in (left,right):
-			assert(isinstance(container, DataContainer))
-			if container.mtype == 'radclock':
-				merge_op = cls.MERGE_RADCLOCK
-			elif container.mtype == 'UDP_merged':
-				merge_op = cls.MERGE_UDP
+    @classmethod
+    def merge(cls, left, right):
+        merge_op = 0
+        for container in (left, right):
+            assert(isinstance(container, DataContainer))
+            if container.mtype == 'radclock':
+                merge_op = cls.MERGE_RADCLOCK
+            elif container.mtype == 'UDP_merged':
+                merge_op = cls.MERGE_UDP
 
-		if merge_op == cls.MERGE_RADCLOCK:
-			return cls.merge_radclock(left, right)
-		elif merge_op == cls.MERGE_UDP:
-			return cls.merge_udp(left, right)
-		else:
-			print 'Cannot figure out what you are trying to merge'
-			raise exception.TypeError
+        if merge_op == cls.MERGE_RADCLOCK:
+            return cls.merge_radclock(left, right)
+        elif merge_op == cls.MERGE_UDP:
+            return cls.merge_udp(left, right)
+        else:
+            print 'Cannot figure out what you are trying to merge'
+            raise exceptions.TypeError
 
 
-	@classmethod
-	def merge_radclock(cls, left, right):
-		
-		if left.mtype == 'radclock' and right.mtype == 'RAD_merged':
-			radclock = left
-			stamps = right
-		elif right.mtype == 'radclock' and left.mtype == 'RAD_merged':
-			radclock = right
-			stamps = left
-		else:
-			print 'Cannot container types in merge_radclock'
-			raise exception.TypeError
+    @classmethod
+    def merge_radclock(cls, left, right):
 
-		stamps.data['key'] = stamps.data['Tf']
+        if left.mtype == 'radclock' and right.mtype == 'RAD_merged':
+            radclock = left
+            stamps = right
+        elif right.mtype == 'radclock' and left.mtype == 'RAD_merged':
+            radclock = right
+            stamps = left
+        else:
+            print 'Cannot container types in merge_radclock'
+            raise exceptions.TypeError
 
-		radclock.data['key'] = radclock.data['Tf']
-		fields = radclock.fields
-		# Tb will be a duplicate after merge, remove it now (otherwise pandas will
-		# change its name
-		fields.remove('Tb')
-		fields.append('key')
-		fields.remove('Tf')
-		radclock.data = radclock.data[fields]
+        stamps.data['key'] = stamps.data['Tf']
 
-		# Important: a pandas merge on column DISCARDS indexes. Very annoying.
-		merged = pd.merge(stamps.data, radclock.data, on='key', how='inner', sort=False)
+        radclock.data['key'] = radclock.data['Tf']
+        fields = radclock.fields
+        # Tb will be a duplicate after merge, remove it now (otherwise pandas will
+        # change its name
+        fields.remove('Tb')
+        fields.append('key')
+        fields.remove('Tf')
+        radclock.data = radclock.data[fields]
 
-		# Reindex using time and clean up extra columns
-		merged.index = merged.time
+        # Important: a pandas merge on column DISCARDS indexes. Very annoying.
+        merged = pd.merge(stamps.data, radclock.data, on='key', how='inner',
+                            sort=False)
 
-		fields = list(merged.columns)
-		fields.remove('key')
-		fields.remove('time')
-		merged = merged[fields] 
+        # Reindex using time and clean up extra columns
+        merged.index = merged.time
 
-		# Remove first 2 lines, it is often a bit dodgy there
-		merged = merged.ix[2:]
+        fields = list(merged.columns)
+        fields.remove('key')
+        fields.remove('time')
+        merged = merged[fields]
 
-		return merged
-
+        # Remove first 2 lines, it is often a bit dodgy there
+        merged = merged.ix[2:]
+        return merged
 

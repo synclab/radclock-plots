@@ -31,53 +31,57 @@ import pandas as pd
 
 
 class PlotStyles(object):
+    """
+    Class to represent plot options, a.k.a. styles.
+    """
 
-	def __init__(self, style_dict=None):
-		self._colors = dict()
-		self._linestyles = dict()
+    def __init__(self, style_dict=None):
+        self._colors = dict()
+        self._linestyles = dict()
 
-		if style_dict != None:
-			if not isinstance(style_dict, dict) == True:
-				raise exception.TypeError
-			self.add_styles(style_dict)
+        if style_dict != None:
+            if not isinstance(style_dict, dict) == True:
+                raise exceptions.TypeError
+            self.add_styles(style_dict)
 
-	def add_styles(self, styles):
-		for key,tval in styles.items():
-			if not isinstance(tval, tuple) == True:
-				raise exception.TypeError
-			self._colors[key] = tval[0]
-			self._linestyles[key] = tval[0]+tval[1]
-
-
-	def valid_for_data(self, data):
-		'''
-		Check that style dictionary keys match a dataframe column or series name
-		'''
-		# Get keys of data as series or column names
-		if isinstance(data, pd.Series):
-			dkeys = set([data.name])
-		elif isinstance(data, pd.DataFrame):
-			dkeys = set(data.columns)
-		else:
-			raise exceptions.TypeError
-			return False
-		# colors and linestyles share same keys by construction
-		color_keys = set(self._colors.keys())
-		if (not dkeys.issubset(color_keys)):
-			print dkeys
-			print color_keys
-			print "styles and data keys do not match"
-			return False
-		else:
-			return True
+    def add_styles(self, styles):
+        for key, tval in styles.items():
+            if not isinstance(tval, tuple) == True:
+                raise exceptions.TypeError
+            self._colors[key] = tval[0]
+            self._linestyles[key] = tval[0]+tval[1]
 
 
-	def color_for_name(self, name):
-		return self._colors[name]
+    def valid_for_data(self, data):
+        '''
+        Check that style dictionary keys match a dataframe column or series
+        name.
+        '''
+        # Get keys of data as series or column names
+        if isinstance(data, pd.Series):
+            dkeys = set([data.name])
+        elif isinstance(data, pd.DataFrame):
+            dkeys = set(data.columns)
+        else:
+            raise exceptions.TypeError
 
-	def linestyle_for_name(self, name):
-		return self._linestyles[name]
+        # colors and linestyles share same keys by construction
+        color_keys = set(self._colors.keys())
+        if (not dkeys.issubset(color_keys)):
+            print dkeys
+            print color_keys
+            print "styles and data keys do not match"
+            return False
+        else:
+            return True
 
-	def linestyles(self):
-		return self._linestyles
+
+    def color_for_name(self, name):
+        return self._colors[name]
+
+    def linestyle_for_name(self, name):
+        return self._linestyles[name]
+
+    def linestyles(self):
+        return self._linestyles
 
